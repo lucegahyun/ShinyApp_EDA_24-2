@@ -40,6 +40,7 @@ data$Class <- sapply(data$job_title, classify_job)
 data$job_category <- sapply(data$job_title, categorize_job)
 data$regular_ex <- factor(data$regular_ex, levels = c(0, 1), labels = c("Non-Exerciser", "Exerciser"))
 data$smoker <- factor(data$smoker, levels = c(0, 1), labels = c("Non-Smoker", "Smoker"))
+data$diabetes <- factor(data$diabetes, levels = c(0, 1), labels = c("diabetes O", "diabetes X"))
 
 # UI 정의
 ui <- fluidPage(
@@ -67,13 +68,15 @@ ui <- fluidPage(
                                         "Job Category (Work Environment)" = "job_category",
                                         "Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
-                                        "Smoker" = "smoker")),
+                                        "Smoker" = "smoker",
+                                        "Diabetes" = "diabetes")),
       checkboxGroupInput("color_groups", "Select Color Groups (For Differentiation, Select only 1):",
                          choices = list("Job Category (Occupational Class)" = "Class",
                                         "Job Category (Work Environment)" = "job_category",
                                         "Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
-                                        "Smoker" = "smoker")),
+                                        "Smoker" = "smoker",
+                                        "Diabetes" = "diabetes")),
       
       selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)", "Density plot (When x-asis is none)")),
       selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
