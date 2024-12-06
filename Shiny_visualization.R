@@ -35,7 +35,7 @@ library(gridExtra)
       }
     }
 # 데이터 불러오기
-data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_final.csv")
+data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_clean.csv")
 data$Class <- sapply(data$job_title, classify_job)
 data$job_category <- sapply(data$job_title, categorize_job)
 data$regular_ex <- factor(data$regular_ex, levels = c(0, 1), labels = c("Non-Exerciser", "Exerciser"))
@@ -69,14 +69,14 @@ ui <- fluidPage(
                                         "Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker")),
-      checkboxGroupInput("color_groups", "Select Color Groups (For Differentiation):",
+      checkboxGroupInput("color_groups", "Select Color Groups (For Differentiation, Select only 1):",
                          choices = list("Job Category (Occupational Class)" = "Class",
                                         "Job Category (Work Environment)" = "job_category",
                                         "Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker")),
       
-      selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot")),
+      selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)")),
       selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
       
       sliderInput("plot_height", "Adjust Plot Height (px):", min = 400, max = 1200, value = 600),
@@ -138,7 +138,7 @@ server <- function(input, output) {
     
     # Color 그룹 설정
     color_groups <- input$color_groups
-    color_var <- if (length(color_groups) > 0) paste(color_groups, collapse = "+") else NULL
+    color_var <- if (length(color_groups) > 0) color_groups[1] else NULL
     
     
     # 모든 조합에 대해 그래프 생성
@@ -168,17 +168,35 @@ server <- function(input, output) {
       }
       
       # 기본 ggplot 객체 생성
-      p <- ggplot(subset_data, aes_string(
-        x = ifelse(input$x_var == "None", NA, input$x_var),
-        y = input$y_var,
-        color = color_var
-      )) +
-        geom_point(alpha = 0.6, size = 2) +
-        labs(title = subtitle) +
-        theme_minimal(base_size = 10)
+      if (input$x_var == "None") {
+        # x축이 없는 경우 Boxplot 또는 Violin Plot 생성
+        if (input$plot_type == "Boxplot (When x-asis is none)") {
+          p <- ggplot(subset_data, aes_string(
+            x = color_var, y = input$y_var, fill = color_var
+          )) +
+            geom_boxplot(alpha = 0.6) +
+            labs(title = subtitle) +
+            theme_minimal(base_size = 10)
+        } else if (input$plot_type == "Violin plot (When x-asis is none)") {
+          p <- ggplot(subset_data, aes_string(
+            x = color_var, y = input$y_var, fill = color_var
+          )) +
+            geom_violin(alpha = 0.6) +
+            labs(title = subtitle) +
+            theme_minimal(base_size = 10)
+        }
+      } else {
+        # 기존 Scatterplot 로직
+        p <- ggplot(subset_data, aes_string(
+          x = input$x_var, y = input$y_var,
+          color = if (!is.null(color_var)) color_var else NULL
+        )) +
+          geom_point(alpha = 0.6, size = 2) +
+          labs(title = subtitle) +
+          theme_minimal(base_size = 10)
+      }
       
-      
-      
+
       
       
       # 트렌드 라인 추가
