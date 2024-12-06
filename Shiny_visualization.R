@@ -44,14 +44,14 @@ library(gridExtra)
 data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_final.csv")
 data$Class <- sapply(data$job_title, classify_job)
 data$job_category <- sapply(data$job_title, categorize_job)
-data$regular_ex <- factor(data$regular_ex, levels = c(0, 1), labels = c("Non-Exerciser", "Exerciser"))
-data$smoker <- factor(data$smoker, levels = c(0, 1), labels = c("Non-Smoker", "Smoker"))
-data$diabetes <- factor(data$diabetes, levels = c(0, 1), labels = c("diabetes O", "diabetes X"))
+data$regular_ex <- factor(data$regular_ex, levels = c(0, 1), labels = c("X", "O"))
+data$smoker <- factor(data$smoker, levels = c(0, 1), labels = c("X", "O"))
+data$diabetes <- factor(data$diabetes, levels = c(0, 1), labels = c("X", "O"))
 data$hereditary_diseases <- ifelse(data$hereditary_diseases == "NoDisease", 
                                    "No hereditary diseases", 
                                    "Have hereditary diseases")
 data$hereditary_diseases <- factor(data$hereditary_diseases, 
-                                   levels = c("No hereditary diseases", "Have hereditary diseases"))
+                                   levels = c("X", "O"))
 data$state_group <- ifelse(data$states %in% group1, "Group 1",
                           ifelse(data$states %in% group2, "Group 2",
                                  ifelse(data$states %in% group3, "Group 3", "Other")))
@@ -102,14 +102,14 @@ ui <- fluidPage(
                                         "Group by states"= "state_group")),
       
       selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)", "Density plot (When x-asis is none)")),
-      selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
-      
-      sliderInput("plot_height", "Adjust Plot Height (px):", min = 400, max = 1200, value = 600),
-      sliderInput("plot_width", "Adjust Plot Width (px):", min = 400, max = 1200, value = 800)
-    ),
+      selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None")
+      ),
     
     mainPanel(
-      plotOutput("main_plot", width = "auto", height = "auto")
+      plotOutput("main_plot", width = "auto", height = "auto"),
+      # 그래프 크기 조절 슬라이더를 그래프 아래로 이동
+      sliderInput("plot_height", "Adjust Plot Height (px):", min = 400, max = 1200, value = 600),
+      sliderInput("plot_width", "Adjust Plot Width (px):", min = 400, max = 1200, value = 800)
     )
   )
 )
