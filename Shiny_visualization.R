@@ -2,20 +2,44 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 library(gridExtra)
-
+#0. 직업분류
+    classify_job <- function(job_title) {
+      if (job_title %in% c("CEO", "Architect", "Accountant", "Journalist", "Manager", 
+                           "ITProfessional", "FilmMaker", "DataScientist", "Clerks", 
+                           "Lawyer", "Buisnessman", "CA", "Actor", "Politician", 
+                           "Singer", "Academician", "FashionDesigner", "HomeMakers", 
+                           "Doctor", "Student", "FilmDirector","Analyst")) {
+        return("Class 1")
+      } else if (job_title %in% c("Engineer", "Dancer", "Photographer", "Beautician", 
+                                  "Blogger", "GovEmployee")) {
+        return("Class 2")
+      } else if (job_title %in% c("HouseKeeper", "Farmer", "DefencePersonnels", 
+                                  "Chef", "Technician", "Labourer")) {
+        return("Class 3")
+      } else {
+        return("Declined")
+      }}
+    
+    categorize_job <- function(job_title) {
+      if (job_title %in% c("Engineer", "Dancer", "Photographer", "FilmMaker", "Actor", 
+                           "Police", "Farmer", "DefencePersonnels", "Chef", "Labourer", 
+                           "HouseKeeper", "Technician", "Beautician", "Singer", "FashionDesigner")) {
+        return("Field")
+      } else if (job_title %in% c("CEO", "Architect", "Accountant", "Journalist", "Manager", 
+                                  "ITProfessional", "DataScientist", "Clerks", "Lawyer", 
+                                  "Buisnessman", "CA", "Politician", "Academician", "Doctor", 
+                                  "FilmDirector", "GovEmployee", "Student", "Analyst", "Blogger", "HomeMakers")) {
+        return("Office")
+      } else {
+        return("Unknown")
+      }
+    }
 # 데이터 불러오기
 data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_final.csv")
 data$Class <- sapply(data$job_title, classify_job)
 data$job_category <- sapply(data$job_title, categorize_job)
-
-# 이진 변수의 형 변환
 data$regular_ex <- factor(data$regular_ex, levels = c(0, 1), labels = c("Non-Exerciser", "Exerciser"))
 data$smoker <- factor(data$smoker, levels = c(0, 1), labels = c("Non-Smoker", "Smoker"))
-
-library(shiny)
-library(ggplot2)
-library(dplyr)
-library(gridExtra)
 
 # UI 정의
 ui <- fluidPage(
@@ -23,7 +47,6 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      # x축/y축 변수 선택
       selectInput("x_var", "Select X-axis Variable:",
                   choices = c("claim", "bmi", "age", "weight", "bloodpressure", "None"),
                   selected = "age"),
@@ -31,18 +54,15 @@ ui <- fluidPage(
                   choices = c("claim", "bmi", "age", "weight", "bloodpressure"),
                   selected = "claim"),
       
-      # x축/y축 interval 설정
       checkboxInput("x_interval_enable", "Enable X-axis Interval", value = FALSE),
       numericInput("x_interval_size", "X-axis Interval Size:", value = 10, min = 1, step = 1),
       checkboxInput("y_interval_enable", "Enable Y-axis Interval", value = FALSE),
       numericInput("y_interval_size", "Y-axis Interval Size:", value = 10, min = 1, step = 1),
       
-      # y축 범위 설정
       checkboxInput("y_range_enable", "Enable Y-axis Range", value = FALSE),
       numericInput("y_min", "Y-axis Minimum:", value = 0, step = 1),
       numericInput("y_max", "Y-axis Maximum:", value = 60000, step = 1),
       
-      # Group 설정
       checkboxGroupInput("comparison_groups", "Select Comparison Groups (For Faceting Plots):",
                          choices = list("Job Category (Occupational Class)" = "Class",
                                         "Job Category (Work Environment)" = "job_category",
@@ -56,11 +76,9 @@ ui <- fluidPage(
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker")),
       
-      # 그래프 유형 및 추세선 선택
       selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot")),
       selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
       
-      # 그래프 크기 조절
       sliderInput("plot_height", "Adjust Plot Height (px):", min = 400, max = 1200, value = 600),
       sliderInput("plot_width", "Adjust Plot Width (px):", min = 400, max = 1200, value = 800)
     ),
@@ -105,6 +123,9 @@ server <- function(input, output) {
   output$main_plot <- renderPlot({
     filtered <- processed_data()
     
+    # 큰 제목 설정
+    main_title <- paste(input$y_var, "against", input$x_var)
+    
     # Comparison 그룹 조합 생성
     comparison_groups <- input$comparison_groups
     if (length(comparison_groups) > 0) {
@@ -117,7 +138,8 @@ server <- function(input, output) {
     
     # Color 그룹 설정
     color_groups <- input$color_groups
-    color_var <- if (length(color_groups) > 0) color_groups[1] else NULL
+    color_var <- if (length(color_groups) > 0) paste(color_groups, collapse = "+") else NULL
+    
     
     # 모든 조합에 대해 그래프 생성
     plot_list <- list()
@@ -136,22 +158,30 @@ server <- function(input, output) {
         next
       }
       
+      # 소제목 생성
+      if (length(comparison_groups) > 0) {
+        subtitle <- paste(sapply(comparison_groups, function(group) {
+          paste(group, comparison_combinations[i, group], sep = ": ")
+        }), collapse = " | ")
+      } else {
+        subtitle <- "No Faceting Groups Selected"
+      }
+      
       # 기본 ggplot 객체 생성
-      p <- ggplot(subset_data, aes_string(x = ifelse(input$x_var == "None", NA, input$x_var), y = input$y_var))
+      p <- ggplot(subset_data, aes_string(
+        x = ifelse(input$x_var == "None", NA, input$x_var),
+        y = input$y_var,
+        color = color_var
+      )) +
+        geom_point(alpha = 0.6, size = 2) +
+        labs(title = subtitle) +
+        theme_minimal(base_size = 10)
       
-      # Color 적용
-      if (!is.null(color_var)) {
-        p <- p + aes_string(color = color_var)
-      }
       
-      # 그래프 유형 추가
-      if (input$plot_type == "Scatterplot" && input$x_var != "None") {
-        p <- p + geom_point(alpha = 0.6, size = 2)
-      } else if (input$plot_type == "Boxplot" || input$x_var == "None") {
-        p <- p + geom_boxplot()
-      }
       
-      # 추세선 추가
+      
+      
+      # 트렌드 라인 추가
       if (input$trendline == "Loess" && input$x_var != "None") {
         p <- p + geom_smooth(method = "loess", se = FALSE, size = 1.2)
       } else if (input$trendline == "Linear Regression (lm)" && input$x_var != "None") {
@@ -163,21 +193,16 @@ server <- function(input, output) {
         p <- p + ylim(input$y_min, input$y_max)
       }
       
-      # 플롯 제목
-      p <- p + labs(title = paste("Plot for Combination", i)) +
-        theme_minimal(base_size = 10)
-      
       plot_list <- append(plot_list, list(p))
     }
     
     # 그래프 배치
     if (length(plot_list) > 1) {
-      grid.arrange(grobs = plot_list, ncol = 2,
-                   top = "Combined Plots")
+      grid.arrange(grobs = plot_list, ncol = 2, top = main_title) # 큰 제목 설정
     } else if (length(plot_list) == 1) {
-      print(plot_list[[1]])
+      print(plot_list[[1]] + ggtitle(main_title))
     } else {
-      ggplot() + labs(title = "No data available for selected filters") +
+      ggplot() + labs(title = main_title, subtitle = "No data available for selected filters") +
         theme_minimal(base_size = 10)
     }
   }, height = reactive({ input$plot_height }), width = reactive({ input$plot_width }))
@@ -185,5 +210,4 @@ server <- function(input, output) {
 
 # 앱 실행
 shinyApp(ui = ui, server = server)
-
 
