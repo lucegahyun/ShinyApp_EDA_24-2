@@ -75,7 +75,7 @@ ui <- fluidPage(
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker")),
       
-      selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)")),
+      selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)", "Density plot (When x-asis is none)")),
       selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
       
       sliderInput("plot_height", "Adjust Plot Height (px):", min = 400, max = 1200, value = 600),
@@ -137,6 +137,11 @@ server <- function(input, output) {
     color_groups <- input$color_groups
     color_var <- if (length(color_groups) > 0) color_groups[1] else NULL
     
+    # 경고 메시지 추가
+    if (input$x_var == "None" && input$plot_type == "Scatterplot") {
+      showNotification("Please select either Boxplot or Violin plot when X-axis is None.", type = "error")
+      return(NULL)
+    }
     
     # 모든 조합에 대해 그래프 생성
     plot_list <- list()
@@ -169,20 +174,36 @@ server <- function(input, output) {
         # x축이 없는 경우 Boxplot 또는 Violin Plot 생성
         if (input$plot_type == "Boxplot (When x-asis is none)") {
           p <- ggplot(subset_data, aes_string(
-            x = color_var, y = input$y_var, fill = color_var
+            x = if (!is.null(color_var)) color_var else "1", # color_var가 없으면 기본값 설정
+            y = input$y_var, 
+            fill = if (!is.null(color_var)) color_var else "1"
           )) +
             geom_boxplot(alpha = 0.6) +
-            labs(title = subtitle) +
+            labs(title = subtitle, x = if (!is.null(color_var)) color_var else "Group") +
             theme_minimal(base_size = 10)
         } else if (input$plot_type == "Violin plot (When x-asis is none)") {
           p <- ggplot(subset_data, aes_string(
-            x = color_var, y = input$y_var, fill = color_var
+            x = if (!is.null(color_var)) color_var else "1", # color_var가 없으면 기본값 설정
+            y = input$y_var, 
+            fill = if (!is.null(color_var)) color_var else "1"
           )) +
-            geom_violin(alpha = 0.6) +
-            labs(title = subtitle) +
+            geom_violin(alpha = 0.6, scale = "width", trim = FALSE) +
+            labs(title = subtitle, x = if (!is.null(color_var)) color_var else "Group") +
             theme_minimal(base_size = 10)
-        }
-      } else {
+        } else if (input$plot_type == "Density plot (When x-asis is none)") {
+        p <- ggplot(subset_data, aes_string(
+          x = input$y_var, 
+          fill = if (!is.null(color_var)) color_var else "1" # color_var가 없으면 기본값 설정
+        )) +
+          geom_density(alpha = 0.6, adjust = 1.2) +
+          labs(
+            title = subtitle, 
+            x = input$y_var, 
+            y = "Density", 
+            fill = if (!is.null(color_var)) color_var else "Group"
+          ) +
+          theme_minimal(base_size = 10)
+      }} else {
         # 기존 Scatterplot 로직
         p <- ggplot(subset_data, aes_string(
           x = input$x_var, y = input$y_var,
