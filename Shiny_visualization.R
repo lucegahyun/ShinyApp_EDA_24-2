@@ -34,13 +34,27 @@ library(gridExtra)
         return("Unknown")
       }
     }
+    
+    # 지역분류
+    group1 <- c("indiana", "new york", "texas", "washington")
+    group2 <- c("pennsylvania", "illinois", "tennessee", "nevada", "colorado", "arizona")
+    group3 <- c("michigan", "south dakota", "missouri", "alabama")
+    
 # 데이터 불러오기
-data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_clean.csv")
+data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_final.csv")
 data$Class <- sapply(data$job_title, classify_job)
 data$job_category <- sapply(data$job_title, categorize_job)
 data$regular_ex <- factor(data$regular_ex, levels = c(0, 1), labels = c("Non-Exerciser", "Exerciser"))
 data$smoker <- factor(data$smoker, levels = c(0, 1), labels = c("Non-Smoker", "Smoker"))
 data$diabetes <- factor(data$diabetes, levels = c(0, 1), labels = c("diabetes O", "diabetes X"))
+data$hereditary_diseases <- ifelse(data$hereditary_diseases == "NoDisease", 
+                                   "No hereditary diseases", 
+                                   "Have hereditary diseases")
+data$hereditary_diseases <- factor(data$hereditary_diseases, 
+                                   levels = c("No hereditary diseases", "Have hereditary diseases"))
+data$state_group <- ifelse(data$states %in% group1, "Group 1",
+                          ifelse(data$states %in% group2, "Group 2",
+                                 ifelse(data$states %in% group3, "Group 3", "Other")))
 
 # UI 정의
 ui <- fluidPage(
@@ -69,14 +83,18 @@ ui <- fluidPage(
                                         "Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker",
-                                        "Diabetes" = "diabetes")),
+                                        "Diabetes" = "diabetes",
+                                        "Hereditary Diseases" = "hereditary_diseases",
+                                        "Group by states"= "state_group")),
       checkboxGroupInput("color_groups", "Select Color Groups (For Differentiation, Select only 1):",
                          choices = list("Job Category (Occupational Class)" = "Class",
                                         "Job Category (Work Environment)" = "job_category",
                                         "Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker",
-                                        "Diabetes" = "diabetes")),
+                                        "Diabetes" = "diabetes",
+                                        "Hereditary Diseases" = "hereditary_diseases",
+                                        "Group by states"= "state_group")),
       
       selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)", "Density plot (When x-asis is none)")),
       selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
@@ -183,7 +201,10 @@ server <- function(input, output) {
           )) +
             geom_boxplot(alpha = 0.6) +
             labs(title = subtitle, x = if (!is.null(color_var)) color_var else "Group") +
-            theme_minimal(base_size = 10)
+            theme_minimal(base_size = 10) +
+            theme(
+              plot.title = element_text(size = 12, face = "bold", hjust = 0.5) # 제목 크기 및 스타일 수정
+            )
         } else if (input$plot_type == "Violin plot (When x-asis is none)") {
           p <- ggplot(subset_data, aes_string(
             x = if (!is.null(color_var)) color_var else "1", # color_var가 없으면 기본값 설정
@@ -192,21 +213,28 @@ server <- function(input, output) {
           )) +
             geom_violin(alpha = 0.6, scale = "width", trim = FALSE) +
             labs(title = subtitle, x = if (!is.null(color_var)) color_var else "Group") +
-            theme_minimal(base_size = 10)
+            theme_minimal(base_size = 10) +
+            theme(
+              plot.title = element_text(size = 12, face = "bold", hjust = 0.5) # 제목 크기 및 스타일 수정
+            )
         } else if (input$plot_type == "Density plot (When x-asis is none)") {
-        p <- ggplot(subset_data, aes_string(
-          x = input$y_var, 
-          fill = if (!is.null(color_var)) color_var else "1" # color_var가 없으면 기본값 설정
-        )) +
-          geom_density(alpha = 0.6, adjust = 1.2) +
-          labs(
-            title = subtitle, 
+          p <- ggplot(subset_data, aes_string(
             x = input$y_var, 
-            y = "Density", 
-            fill = if (!is.null(color_var)) color_var else "Group"
-          ) +
-          theme_minimal(base_size = 10)
-      }} else {
+            fill = if (!is.null(color_var)) color_var else "1" # color_var가 없으면 기본값 설정
+          )) +
+            geom_density(alpha = 0.6, adjust = 1.2) +
+            labs(
+              title = subtitle, 
+              x = input$y_var, 
+              y = "Density", 
+              fill = if (!is.null(color_var)) color_var else "Group"
+            ) +
+            theme_minimal(base_size = 10) +
+            theme(
+              plot.title = element_text(size = 12, face = "bold", hjust = 0.5) # 제목 크기 및 스타일 수정
+            )
+        }
+      } else {
         # 기존 Scatterplot 로직
         p <- ggplot(subset_data, aes_string(
           x = input$x_var, y = input$y_var,
@@ -214,7 +242,10 @@ server <- function(input, output) {
         )) +
           geom_point(alpha = 0.6, size = 2) +
           labs(title = subtitle) +
-          theme_minimal(base_size = 10)
+          theme_minimal(base_size = 10) +
+          theme(
+            plot.title = element_text(size = 12, face = "bold", hjust = 0.5) # 제목 크기 및 스타일 수정
+          )
       }
       
 
