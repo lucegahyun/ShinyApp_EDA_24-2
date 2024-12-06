@@ -56,8 +56,7 @@ ui <- fluidPage(
       
       checkboxInput("x_interval_enable", "Enable X-axis Interval", value = FALSE),
       numericInput("x_interval_size", "X-axis Interval Size:", value = 10, min = 1, step = 1),
-      checkboxInput("y_interval_enable", "Enable Y-axis Interval", value = FALSE),
-      numericInput("y_interval_size", "Y-axis Interval Size:", value = 10, min = 1, step = 1),
+
       
       checkboxInput("y_range_enable", "Enable Y-axis Range", value = FALSE),
       numericInput("y_min", "Y-axis Minimum:", value = 0, step = 1),
@@ -96,29 +95,27 @@ server <- function(input, output) {
   processed_data <- reactive({
     filtered <- data
     
-    # x축 구간화
+    # x축 구간화 처리
     if (input$x_interval_enable && input$x_var != "None") {
       filtered <- filtered %>%
         mutate(x_interval = cut(!!sym(input$x_var),
                                 breaks = seq(min(filtered[[input$x_var]], na.rm = TRUE),
                                              max(filtered[[input$x_var]], na.rm = TRUE) + input$x_interval_size,
                                              by = input$x_interval_size),
-                                include.lowest = TRUE))
-    }
-    
-    # y축 구간화
-    if (input$y_interval_enable) {
-      filtered <- filtered %>%
-        mutate(y_interval = cut(!!sym(input$y_var),
-                                breaks = seq(min(filtered[[input$y_var]], na.rm = TRUE),
-                                             max(filtered[[input$y_var]], na.rm = TRUE) + input$y_interval_size,
-                                             by = input$y_interval_size),
-                                include.lowest = TRUE))
+                                include.lowest = TRUE,
+                                labels = paste0(
+                                  seq(min(filtered[[input$x_var]], na.rm = TRUE), 
+                                      max(filtered[[input$x_var]], na.rm = TRUE), 
+                                      by = input$x_interval_size),
+                                  "-",
+                                  seq(min(filtered[[input$x_var]], na.rm = TRUE) + input$x_interval_size,
+                                      max(filtered[[input$x_var]], na.rm = TRUE) + input$x_interval_size, 
+                                      by = input$x_interval_size)
+                                )))
     }
     
     return(filtered)
   })
-  
   # 그래프 생성
   output$main_plot <- renderPlot({
     filtered <- processed_data()
@@ -211,7 +208,13 @@ server <- function(input, output) {
         p <- p + ylim(input$y_min, input$y_max)
       }
       
-      plot_list <- append(plot_list, list(p))
+      
+      # Facet 추가: x_interval별로 분리
+      if (input$x_interval_enable && input$x_var != "None" && "x_interval" %in% colnames(subset_data)) {
+        p <- p + facet_wrap(~x_interval, scales = "free_x")
+      }
+      
+      plot_list <- append(plot_list, list(p)) #얘를 plot변경 후에 맨 끝에 데려와야하는구낭
     }
     
     # 그래프 배치
