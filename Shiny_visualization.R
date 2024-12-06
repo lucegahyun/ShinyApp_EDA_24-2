@@ -4,7 +4,7 @@ library(dplyr)
 library(gridExtra)
 
 # 데이터 불러오기
-data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_clean.csv")
+data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_final.csv")
 data$Class <- sapply(data$job_title, classify_job)
 data$job_category <- sapply(data$job_title, categorize_job)
 
@@ -12,9 +12,14 @@ data$job_category <- sapply(data$job_title, categorize_job)
 data$regular_ex <- factor(data$regular_ex, levels = c(0, 1), labels = c("Non-Exerciser", "Exerciser"))
 data$smoker <- factor(data$smoker, levels = c(0, 1), labels = c("Non-Smoker", "Smoker"))
 
+library(shiny)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+
 # UI 정의
 ui <- fluidPage(
-  titlePanel("Exploring health insurance claim data with multiple options"),
+  titlePanel("Advanced Visualization with Group Options"),
   
   sidebarLayout(
     sidebarPanel(
@@ -38,7 +43,7 @@ ui <- fluidPage(
       numericInput("y_max", "Y-axis Maximum:", value = 60000, step = 1),
       
       # Group 설정
-      checkboxGroupInput("comparison_groups", "Select Comparison Groups (For Plots):",
+      checkboxGroupInput("comparison_groups", "Select Comparison Groups (For Faceting Plots):",
                          choices = list("Job Category (Occupational Class)" = "Class",
                                         "Job Category (Work Environment)" = "job_category",
                                         "Sex" = "sex",
@@ -53,11 +58,15 @@ ui <- fluidPage(
       
       # 그래프 유형 및 추세선 선택
       selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot")),
-      selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None")
+      selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
+      
+      # 그래프 크기 조절
+      sliderInput("plot_height", "Adjust Plot Height (px):", min = 400, max = 1200, value = 600),
+      sliderInput("plot_width", "Adjust Plot Width (px):", min = 400, max = 1200, value = 800)
     ),
     
     mainPanel(
-      plotOutput("main_plot", height = "1000px") # 고정된 높이 설정
+      plotOutput("main_plot", width = "auto", height = "auto")
     )
   )
 )
@@ -96,10 +105,6 @@ server <- function(input, output) {
   output$main_plot <- renderPlot({
     filtered <- processed_data()
     
-    # y축 범위 고정값 계산
-    y_min <- min(filtered[[input$y_var]], na.rm = TRUE)
-    y_max <- max(filtered[[input$y_var]], na.rm = TRUE)
-    
     # Comparison 그룹 조합 생성
     comparison_groups <- input$comparison_groups
     if (length(comparison_groups) > 0) {
@@ -107,17 +112,12 @@ server <- function(input, output) {
       comparison_combinations <- expand.grid(comparison_levels, KEEP.OUT.ATTRS = FALSE)
       colnames(comparison_combinations) <- comparison_groups
     } else {
-      comparison_combinations <- data.frame(dummy = 1)  # 빈 조합 대신 더미 열 생성
+      comparison_combinations <- data.frame(dummy = 1)
     }
     
     # Color 그룹 설정
     color_groups <- input$color_groups
     color_var <- if (length(color_groups) > 0) color_groups[1] else NULL
-    
-    # Facet 설정에 사용할 변수 생성
-    facet_vars <- c()
-    if (input$x_interval_enable && input$x_var != "None") facet_vars <- c(facet_vars, "x_interval")
-    if (input$y_interval_enable) facet_vars <- c(facet_vars, "y_interval")
     
     # 모든 조합에 대해 그래프 생성
     plot_list <- list()
@@ -153,63 +153,37 @@ server <- function(input, output) {
       
       # 추세선 추가
       if (input$trendline == "Loess" && input$x_var != "None") {
-        if (!is.null(color_var)) {
-          p <- p + geom_smooth(aes_string(group = color_var), method = "loess", se = FALSE, size = 1.2)
-        } else {
-          p <- p + geom_smooth(method = "loess", se = FALSE, size = 1.2, color = "blue")
-        }
+        p <- p + geom_smooth(method = "loess", se = FALSE, size = 1.2)
       } else if (input$trendline == "Linear Regression (lm)" && input$x_var != "None") {
-        if (!is.null(color_var)) {
-          p <- p + geom_smooth(aes_string(group = color_var), method = "lm", se = FALSE, size = 1.2)
-        } else {
-          p <- p + geom_smooth(method = "lm", se = FALSE, size = 1.2, color = "red")
-        }
+        p <- p + geom_smooth(method = "lm", se = FALSE, size = 1.2)
       }
       
-      # y축 범위 고정
+      # y축 범위 설정
       if (input$y_range_enable) {
         p <- p + ylim(input$y_min, input$y_max)
-      } else {
-        p <- p + ylim(y_min, y_max)
       }
       
-      # 플롯 제목 생성
-      title_parts <- sapply(names(comparison_combinations), function(var) {
-        paste(var, comparison_combinations[i, var], sep = ": ")
-      })
-      title <- paste(title_parts, collapse = " | ")
-      
-      p <- p + labs(title = title) +
-        theme_minimal(base_size = 10) +
-        theme(plot.title = element_text(hjust = 0.5),
-              plot.margin = margin(5, 5, 5, 5))
-      
-      # Facet 설정 추가
-      if (length(facet_vars) > 0) {
-        p <- p + facet_grid(as.formula(paste("~", paste(facet_vars, collapse = "+"))))
-      }
+      # 플롯 제목
+      p <- p + labs(title = paste("Plot for Combination", i)) +
+        theme_minimal(base_size = 10)
       
       plot_list <- append(plot_list, list(p))
     }
     
     # 그래프 배치
-    # 그래프 배치
     if (length(plot_list) > 1) {
-      ncol <- 2
-      nrow <- ceiling(length(plot_list) / ncol)
-      grid.arrange(grobs = plot_list, ncol = ncol, nrow = nrow)
+      grid.arrange(grobs = plot_list, ncol = 2,
+                   top = "Combined Plots")
     } else if (length(plot_list) == 1) {
       print(plot_list[[1]])
     } else {
-      # 데이터가 없을 경우 기본 데이터 표시
-      ggplot(data, aes_string(x = input$x_var, y = input$y_var)) +
-        geom_point(alpha = 0.6, size = 2, color = "gray") +
-        labs(title = "No data available for selected filters - Showing full dataset") +
+      ggplot() + labs(title = "No data available for selected filters") +
         theme_minimal(base_size = 10)
     }
-  })
+  }, height = reactive({ input$plot_height }), width = reactive({ input$plot_width }))
 }
 
 # 앱 실행
 shinyApp(ui = ui, server = server)
+
 
