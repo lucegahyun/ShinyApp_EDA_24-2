@@ -271,7 +271,6 @@ server <- function(input, output) {
             group_means <- subset_data %>%
               group_by_at(color_var) %>%  # color_var 기준으로 그룹화
               summarise(mean_value = mean(!!sym(input$y_var), na.rm = TRUE))  # 평균값 계산
-            
             # 평균 연결 선 추가
             p <- p +
               geom_line(
@@ -342,9 +341,9 @@ server <- function(input, output) {
         p <- p + geom_smooth(method = "lm", se = FALSE, size = 1.2)
       }
       
-      # y축 범위 설정
+      # 평균선 추가 후 y축 범위 설정
       if (input$y_range_enable) {
-        p <- p + ylim(input$y_min, input$y_max)
+        p <- p + coord_cartesian(ylim = c(input$y_min, input$y_max))  # coord_cartesian 사용하여 평균선이 영향을 받지 않도록 함
       }
       
       
