@@ -51,7 +51,7 @@ data$hereditary_diseases <- ifelse(data$hereditary_diseases == "NoDisease",
                                    "No hereditary diseases", 
                                    "Have hereditary diseases")
 data$hereditary_diseases <- factor(data$hereditary_diseases, 
-                                   levels = c("X", "O"))
+                                   levels = c("No hereditary diseases", "Have hereditary diseases"), labels = c("X", "O"))
 data$state_group <- ifelse(data$states %in% group1, "Group 1",
                           ifelse(data$states %in% group2, "Group 2",
                                  ifelse(data$states %in% group3, "Group 3", "Other")))
@@ -327,6 +327,10 @@ server <- function(input, output) {
           )
       }
       
+      # Hide legend if no color group is selected
+      if (is.null(color_var)) {
+        p <- p + theme(legend.position = "none")
+      }
       
 
       
