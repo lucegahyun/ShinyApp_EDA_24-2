@@ -14,32 +14,16 @@ library(gridExtra)
                                   "Blogger", "GovEmployee")) {
         return("Class 2")
       } else if (job_title %in% c("HouseKeeper", "Farmer", "DefencePersonnels", 
-                                  "Chef", "Technician", "Labourer")) {
+                                  "Chef", "Technician", "Labourer", "Police")) {
         return("Class 3")
       } else {
         return("Declined")
       }}
     
-    categorize_job <- function(job_title) {
-      if (job_title %in% c("Engineer", "Dancer", "Photographer", "FilmMaker", "Actor", 
-                           "Police", "Farmer", "DefencePersonnels", "Chef", "Labourer", 
-                           "HouseKeeper", "Technician", "Beautician", "Singer", "FashionDesigner")) {
-        return("Field")
-      } else if (job_title %in% c("CEO", "Architect", "Accountant", "Journalist", "Manager", 
-                                  "ITProfessional", "DataScientist", "Clerks", "Lawyer", 
-                                  "Buisnessman", "CA", "Politician", "Academician", "Doctor", 
-                                  "FilmDirector", "GovEmployee", "Student", "Analyst", "Blogger", "HomeMakers")) {
-        return("Office")
-      } else {
-        return("Unknown")
-      }
-    }
-    
     # 지역분류
-    group1 <- c("indiana", "new york", "texas", "washington")
-    group2 <- c("pennsylvania", "illinois", "tennessee", "nevada", "colorado", "arizona")
-    group3 <- c("michigan", "south dakota", "missouri", "alabama")
-    
+    high <- c("indiana", "illinois", "nevada", "washington", "colorado")
+    low <- c("maryland", "kansas", "missouri", "louisiana", "michigan", "arizona")
+
 # 데이터 불러오기
 data <- read.csv("C:/Users/GAG01/OneDrive/바탕 화면/yonsei/2024-2/탐자분/Final project/data_final.csv")
 data$Class <- sapply(data$job_title, classify_job)
@@ -52,9 +36,9 @@ data$hereditary_diseases <- ifelse(data$hereditary_diseases == "NoDisease",
                                    "Have hereditary diseases")
 data$hereditary_diseases <- factor(data$hereditary_diseases, 
                                    levels = c("No hereditary diseases", "Have hereditary diseases"), labels = c("X", "O"))
-data$state_group <- ifelse(data$states %in% group1, "Group 1",
-                          ifelse(data$states %in% group2, "Group 2",
-                                 ifelse(data$states %in% group3, "Group 3", "Other")))
+data$state_group <- ifelse(data$states %in% high, "high",
+                          ifelse(data$states %in% low, "low", "Other"))
+data$no_of_dependents <- factor(data$no_of_dependents, levels = c(0, 1, 2, 3, 4, 5), labels = c( "0", "1","2", "3", "4", "5"))
 
 # UI 정의
 ui <- fluidPage(
@@ -63,9 +47,9 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       
-      selectInput("data_filter", "Filter Data:", 
-                  choices = c("All Data", "Filter by State Groups"), 
-                  selected = "All Data"),
+      #selectInput("data_filter", "Filter Data:", 
+                 #choices = c("All Data", "Filter by State Groups"), 
+                 #selected = "All Data"),
       
       selectInput("x_var", "Select X-axis Variable:",
                   choices = c("claim", "bmi", "age", "weight", "bloodpressure", "None"),
@@ -73,37 +57,36 @@ ui <- fluidPage(
       selectInput("y_var", "Select Y-axis Variable:",
                   choices = c("claim", "bmi", "age", "weight", "bloodpressure"),
                   selected = "claim"),
-      
+      checkboxInput("log_transform", "Log-transform Y-axis", value = FALSE),
       checkboxInput("x_interval_enable", "Enable X-axis Interval", value = FALSE),
       numericInput("x_interval_size", "X-axis Interval Size:", value = 10, min = 1, step = 1),
 
-      
+      selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)", "Density plot (When x-asis is none)")),
+      selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None"),
+
       checkboxInput("y_range_enable", "Enable Y-axis Range", value = FALSE),
       numericInput("y_min", "Y-axis Minimum:", value = 0, step = 1),
       numericInput("y_max", "Y-axis Maximum:", value = 60000, step = 1),
       
-      checkboxGroupInput("comparison_groups", "Select Comparison Groups (For Faceting Plots):",
-                         choices = list("Job Category (Occupational Class)" = "Class",
-                                        "Job Category (Work Environment)" = "job_category",
-                                        "Sex" = "sex",
+      checkboxGroupInput("comparison_groups", "1. Select Groups (For Faceting Plots):",
+                         choices = list("Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker",
                                         "Diabetes" = "diabetes",
-                                        "Hereditary Diseases" = "hereditary_diseases",
-                                        "Group by states"= "state_group")),
-      checkboxGroupInput("color_groups", "Select Color Groups (For Differentiation, Select only 1):",
-                         choices = list("Job Category (Occupational Class)" = "Class",
-                                        "Job Category (Work Environment)" = "job_category",
-                                        "Sex" = "sex",
+                                        "Hereditary Diseases" = "hereditary_diseases", #,"Group by states"= "state_group"
+                                        "Number of dependents"="no_of_dependents",
+                                        "Job Category (Occupational Class)" = "Class",
+                                        "State Category (High, Low)" = "state_group")),
+      checkboxGroupInput("color_groups", "2. Select Group (For Color Differentiation, Select only 1):",
+                         choices = list("Sex" = "sex",
                                         "Regular Exercise" = "regular_ex",
                                         "Smoker" = "smoker",
                                         "Diabetes" = "diabetes",
-                                        "Hereditary Diseases" = "hereditary_diseases",
-                                        "Group by states"= "state_group")),
-      
-      selectInput("plot_type", "Select Plot Type:", choices = c("Scatterplot", "Boxplot (When x-asis is none)", "Violin plot (When x-asis is none)", "Density plot (When x-asis is none)")),
-      selectInput("trendline", "Add Trendline:", choices = c("None", "Loess", "Linear Regression (lm)"), selected = "None")
-      ),
+                                        "Hereditary Diseases" = "hereditary_diseases", #,"Group by states"= "state_group"
+                                        "Number of dependents"="no_of_dependents",
+                                        "Job Category (Occupational Class)" = "Class",
+                                        "State Category (High, Low)" = "state_group"
+                                        ))),
     
     mainPanel(
       plotOutput("main_plot", width = "auto", height = "auto"),
@@ -122,10 +105,10 @@ server <- function(input, output) {
     filtered <- data
     
     # 필터링 옵션 적용
-    if (input$data_filter == "Filter by State Groups") {
-      filtered <- filtered %>%
-        filter(state_group %in% c("Group 1", "Group 2", "Group 3"))
-    }
+    #if (input$data_filter == "Filter by State Groups") {
+    #  filtered <- filtered %>%
+    #    filter(state_group %in% c("Group 1", "Group 2", "Group 3"))
+    #}
     
     # x축 구간화 처리
     if (input$x_interval_enable && input$x_var != "None") {
@@ -151,6 +134,14 @@ server <- function(input, output) {
   # 그래프 생성
   output$main_plot <- renderPlot({
     filtered <- processed_data()
+    
+    # Log-transformation of y-variable if selected
+    y_var <- input$y_var
+    if (input$log_transform) {
+      # Apply log transformation to y-axis variable
+      filtered[[y_var]] <- log1p(filtered[[y_var]])  # log1p is used to handle 0 values correctly
+      y_var <- paste("log(", y_var, "+1)", sep = "")  # Update the y-variable label
+    }
     
     # 큰 제목 설정
     main_title <- paste(input$y_var, "against", input$x_var)
